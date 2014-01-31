@@ -5,16 +5,16 @@ Augmented Types is a PHP extension that enforces PHPDoc-style type annotations a
 ## Usage
 
 Augmented Types requires that all type-enforced functions and methods be annotated with valid PHPDoc that specifies a type for the return value and every argument, like so:
-
-	/**
-	 * @param int $a
-	 * @return float[]
-	 */
-	function foo ($a) {
-		echo "You passed in the integer $a";
-		return [$a * 1.0, $a * 2.718];
-	}
-
+```php
+/**
+* @param int $a
+* @return float[]
+*/
+function foo ($a) {
+	echo "You passed in the integer $a";
+	return [$a * 1.0, $a * 2.718];
+}
+```
 At runtime, if any type differs from the expected type on a type-enforced function, Augmented Types will throw a fatal error. More information on [the type system](https://github.com/box/augmented_types/wiki/The-Type-System) and [type annotation requirements](https://github.com/box/augmented_types/wiki/Type-Annotation-Requirements) can be found on the wiki.
 
 By default, Augmented Types will _only_ enforce type annotations on a given function if the file or directory the function is contained in is added to a whitelist. Augmented Types allows you to both whitelist and blacklist files and directories for enforcement. More information can be found [on the wiki](https://github.com/box/augmented_types/wiki/Whitelisting-and-Blacklisting).
