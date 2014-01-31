@@ -53,3 +53,4 @@ tests/*.out
 tests/*.sh
 TODO
 private/*
+tmp-php.ini
