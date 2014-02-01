@@ -186,7 +186,7 @@ static void augmented_types_deactivate(void)
 ZEND_EXT_API zend_extension zend_extension_entry = {
 	PHP_AUGMENTED_TYPES_EXTNAME,			/* name */
 	PHP_AUGMENTED_TYPES_VERSION,			/* version */
-	"jmarrama@box.com",						/* author */
+	"jmarrama@box.com, abishopric@box.com",	/* author */
 	"http://www.box.com/",					/* URL */
 	"Copyright (c) 2013",					/* copyright */
 	augmented_types_start,					/* startup */
