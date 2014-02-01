@@ -17,7 +17,11 @@ function foo ($a) {
 ```
 At runtime, if any type differs from the expected type on a type-enforced function, Augmented Types will throw a fatal error. More information on [the type system](https://github.com/box/augmented_types/wiki/The-Type-System) and [type annotation requirements](https://github.com/box/augmented_types/wiki/Type-Annotation-Requirements) can be found on the wiki.
 
-By default, Augmented Types will _only_ enforce type annotations on a given function if the file or directory the function is contained in is added to a whitelist. Augmented Types allows you to both whitelist and blacklist files and directories for enforcement. More information can be found [on the wiki](https://github.com/box/augmented_types/wiki/Whitelisting-and-Blacklisting).
+Augmented Types' master INI setting is `augmented_types.enforce_by_default`, which is considered to be 0 if not set.  That means, by default, Augmented Types will _only_ enforce type annotations on a given function if the file or directory the function is contained in is added to a whitelist. Augmented Types allows you to both whitelist and blacklist files and directories for enforcement. 
+
+Alternatively, if you'd like to enable Augmented Types enforcement on all files, add `augmented_types.enforce_by_default=1` to your php.ini.
+
+More information about whitelisting and blacklisting can be found [on the wiki](https://github.com/box/augmented_types/wiki/Whitelisting-and-Blacklisting).
 
 ## Installation
 
