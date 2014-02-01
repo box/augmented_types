@@ -2,6 +2,8 @@ PHP_ARG_ENABLE(augmented_types, whether to enable augmented_types support,
 [  --enable-augmented_types           Enable augmented_types support], yes)
 
 if test "$PHP_AUGMENTED_TYPES" != "no"; then
+  AC_PROG_LEX
+  AC_PROG_YACC
   PHP_REQUIRE_CXX()
   PHP_SUBST(AUGMENTED_TYPES_SHARED_LIBADD)
   PHP_ADD_LIBRARY(stdc++, 1, AUGMENTED_TYPES_SHARED_LIBADD)
