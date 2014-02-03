@@ -17,4 +17,4 @@ function sometimes_returns() {
 
 ?>
 --EXPECTREGEX--
-.*@return declarations may not mix void and values.*
+.*Return types may not mix void and non-void types.*

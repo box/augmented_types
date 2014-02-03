@@ -337,6 +337,11 @@ zend_uchar PHPDoc_Void_Type::get_type_uchar()
 	return VOID_TYPE;
 }
 
+bool PHPDoc_Void_Type::contains_void()
+{
+	return true;
+}
+
 //////////////////// Begin PHPDoc_Classname_Type ///////////////////////
 
 PHPDoc_Classname_Type::PHPDoc_Classname_Type()
@@ -460,6 +465,24 @@ PHPDoc_Disjunctive_Type::~PHPDoc_Disjunctive_Type()
 		delete left;
 		delete right;
 	}
+}
+
+bool PHPDoc_Disjunctive_Type::contains_void()
+{
+	assert(!uses_serialized_resources);
+	return (left->contains_void() || right->contains_void());
+}
+
+bool PHPDoc_Disjunctive_Type::verify_type(string* err_msg)
+{
+	assert(!uses_serialized_resources);
+
+	// check left before right, because that likely will produce
+	// the most intuitive error message
+	if ( !left->verify_type(err_msg) ) {
+		return false;
+	}
+	return right->verify_type(err_msg);
 }
 
 /**
@@ -602,6 +625,18 @@ bool PHPDoc_Variadic_Type::is_variadic()
 	return true;
 }
 
+bool PHPDoc_Variadic_Type::contains_void()
+{
+	assert(!uses_serialized_resources);
+	return elemental_type->contains_void();
+}
+
+bool PHPDoc_Variadic_Type::verify_type(string* err_msg)
+{
+	assert(!uses_serialized_resources);
+	return elemental_type->verify_type(err_msg);
+}
+
 /**
  * Serializes the variadiac type. Its memory looks like this:
  * [ type_uchar | <serialized elemental_type ]
@@ -689,6 +724,26 @@ zend_uchar PHPDoc_ArrayOf_Type::get_type_uchar()
 	return ARRAYOF_TYPE;
 }
 
+bool PHPDoc_ArrayOf_Type::contains_void()
+{
+	assert(!uses_serialized_resources);
+	return elemental_type->contains_void();
+}
+
+/**
+ * The type contained in the Array must not contain void types!
+ * Having an array of voids does not make sense
+ */
+bool PHPDoc_ArrayOf_Type::verify_type(string* err_msg)
+{
+	assert(!uses_serialized_resources);
+	if (elemental_type->contains_void()) {
+		(*err_msg) = "ArrayOf types cannot contain void!";
+		return false;
+	}
+	return elemental_type->verify_type(err_msg);
+}
+
 /**
  * Serializes the arrayof type. Its memory looks like this:
  * [ type_uchar | <serialized elemental_type ]
@@ -745,9 +800,8 @@ void PHPDoc_Function::init_resources()
 {
 	first_parameter_type = NULL;
 	return_type = NULL;
-	error_str = NULL;
+	error_str = "";
 	uses_serialized_resources = false;
-	//DPRINTF("init with param and return %p, %p\n", first_parameter_type, return_type);
 }
 
 PHPDoc_Function::~PHPDoc_Function()
@@ -758,21 +812,14 @@ PHPDoc_Function::~PHPDoc_Function()
 	if (return_type) {
 		delete return_type;
 	}
-	if (error_str) {
-		efree(error_str);
-	}
 }
 
-void PHPDoc_Function::set_error_string(const char *err)
+void PHPDoc_Function::set_error_string(string err)
 {
-	if (error_str) {
-		efree(error_str);
-	}
-	error_str = (char*) emalloc(strlen(err) + 1);
-	strcpy(error_str, err);
+	error_str = err;
 }
 
-char *PHPDoc_Function::get_error_string()
+string PHPDoc_Function::get_error_string()
 {
 	return error_str;
 }
@@ -982,3 +1029,46 @@ void PHPDoc_Function::deserialize(zend_literal *literal)
 	}
 }
 
+/**
+ * This is general purpose function to verify the types of this function. If any type
+ * is deemed unsuitable, then this will return false and dump an informative error
+ * to the object's error string
+ */
+bool PHPDoc_Function::verify_types()
+{
+	assert(!uses_serialized_resources);
+	string type_err_str;
+
+	// all phpdoc functions _must_ have return types!
+	if (!return_type) {
+		error_str = "Return types must always be specified.";
+		return false;
+	}
+
+	// enforce that return types be valid and not mix void and non-void values
+	if (!return_type->verify_type(&type_err_str)) {
+		error_str = "Error in return type: " + type_err_str;
+		return false;
+	}
+	if (return_type->get_type_uchar() != VOID_TYPE && return_type->contains_void()) {
+		error_str = "Return types may not mix void and non-void types.";
+		return false;
+	}
+
+	// enforce that all argument types are valid
+	int current_arg_num = 1;
+	PHPDoc_Type *current_arg = first_parameter_type;
+	while (current_arg) {
+		if (!current_arg->verify_type(&type_err_str)) {
+			stringstream ss;
+			ss << "Error in type for argument " << current_arg_num << ": " << type_err_str;
+			error_str = ss.str();
+			return false;
+		}
+
+		current_arg = current_arg->get_next();
+		current_arg_num++;
+	}
+
+	return true;
+}

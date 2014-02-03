@@ -82,6 +82,14 @@ $b = take_complex_type([['lolz']]);
 $c = take_complex_type([['lolz', 'as if'], 1234, 9876]);
 $d = take_complex_type(['not the right type']);
 
+/**
+* @param int|string[]
+* @return int|string[]
+*/
+function foo($bar) {
+	return $bar;
+}
+
 ?>
 --EXPECTREGEX--
 thing is string

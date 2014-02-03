@@ -86,6 +86,25 @@ public:
 	}
 
 	/**
+	 * Describes whether this type contains the 'void' type or not. All types which
+	 * do not contain other types and are not the void type itself should return false
+	 */
+	virtual bool contains_void() {
+		return false;
+	}
+
+	/**
+	 * Does any type-specific validation that should be checked at compile-time.
+	 * Returns true if the type is valid. This will likely be a no-op for most types,
+	 * but certain types need to perform specific post-parse-time validation (for example,
+	 * the array_of type needs to verify that it doesn't contain a void type, because
+	 * void types _cannot_ be in arrays).
+	 */
+	virtual bool verify_type(string* err_msg) {
+		return true;
+	}
+
+	/**
 	 * Returns this types identifying uchar. Used to identify subclasses of serialized
 	 * phpdoc_types. This MUST be unique - see the defining macros in phpdoc.cc
 	 */
@@ -158,6 +177,7 @@ public:
 	bool matches(zval **z TSRMLS_DC);
 	string typestr();
 	zend_uchar get_type_uchar();
+	bool contains_void();
 };
 
 class PHPDoc_Classname_Type : public PHPDoc_Type
@@ -197,6 +217,8 @@ public:
 	PHPDoc_Disjunctive_Type();
 	~PHPDoc_Disjunctive_Type();
 	bool matches(zval **z TSRMLS_DC);
+	bool contains_void();
+	bool verify_type(string* err_msg);
 	string typestr();
 	zend_uchar get_type_uchar();
 	int serialize(zend_uchar *buf, bool writeMemory);
@@ -214,6 +236,8 @@ public:
 	PHPDoc_Variadic_Type();
 	~PHPDoc_Variadic_Type();
 	bool matches(zval **z TSRMLS_DC);
+	bool contains_void();
+	bool verify_type(string* err_msg);
 	string typestr();
 	zend_uchar get_type_uchar();
 	void set_next(PHPDoc_Type * cannot_set);
@@ -233,6 +257,8 @@ public:
 	PHPDoc_ArrayOf_Type();
 	~PHPDoc_ArrayOf_Type();
 	bool matches(zval **z TSRMLS_DC);
+	bool contains_void();
+	bool verify_type(string* err_msg);
 	string typestr();
 	zend_uchar get_type_uchar();
 	int serialize(zend_uchar *buf, bool writeMemory);
@@ -258,11 +284,13 @@ public:
 	void set_parameters(PHPDoc_Type * first_parameter_type);
 	void set_return(PHPDoc_Type * return_type);
 	PHPDoc_Type *get_return();
+	bool verify_types();
+
 	void enforce_argument_types(zval** params, uint nparams, const char *func_name TSRMLS_DC);
 	void enforce_return_type(zval** returned_value, const char *func_name TSRMLS_DC);
 	void debug();
-	void set_error_string(const char *err);
-	char *get_error_string();
+	void set_error_string(string err);
+	string get_error_string();
 	zend_literal serialize();
 	void deserialize(zend_literal * literal);
 
@@ -273,7 +301,7 @@ private:
 	char *serialized_return_type;
 	char *serialized_arg_types;
 
-	char *error_str;
+	string error_str;
 	bool uses_serialized_resources;
 	char *advance_type_pointer(char *current);
 	void init_resources();

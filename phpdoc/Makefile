@@ -15,7 +15,7 @@ endif
 all: libphpdoc.a libphpdoc.so
 
 clean:
-	-rm libphpdoc.a phpdoct parser.yacc.cpp scanner.lex.cpp scanner.lex.hpp parser.yacc.output parser.yacc.hpp *.o 2>/dev/null
+	-rm libphpdoc.a phpdoct scanner.lex.cpp scanner.lex.hpp parser.yacc.* *.o 2>/dev/null
 
 parser.yacc.cpp: parser.y
 	bison $(BISONFLAGS) -d -o $@ $<

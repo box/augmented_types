@@ -53,19 +53,21 @@ int PHPDoc_Bison_Compiler::compileFunction(zend_op_array* op_array, zend_literal
 	int result = phpdocparse(&fnptr);
 	DPRINTF("phpdocparse returned %d\n", result);
 
-	// if the compilation failed, cleanup, throw an exception, and bail!
+	// if lexing and/or parsing failed: cleanup, throw an exception, and bail!
 	if (result != 0) {
 		phpdoc_delete_buffer(state);
 		throw_compilation_exception(op_array, &fn);
 		return FAILURE;
 	}
 
-	// enforce that all compiled functions other than __construct methods
-	// have return types.
+	// if a constructor didn't specify a return type (which is allowed),
+	// just fill in void for it
 	if (is_constructor && !fn.get_return()) {
 		fn.set_return(new PHPDoc_Void_Type());
-	} else if (!fn.get_return()) {
-		fn.set_error_string("Return types must always be specified.");
+	}
+
+	// lastly, verify that this function contains valid types. bail out if it doesnt
+	if (!fn.verify_types()) {
 		phpdoc_delete_buffer(state);
 		throw_compilation_exception(op_array, &fn);
 		return FAILURE;
@@ -86,5 +88,5 @@ void PHPDoc_Bison_Compiler::throw_compilation_exception(zend_op_array* op_array,
 {
 	TSRMLS_FETCH();
 	zend_error(ATCG(compilation_error_level), "Function annotation compilation failed for function %s in file %s at line %u, error message: %s\n",
-			op_array->function_name, op_array->filename, op_array->line_start, fn->get_error_string());
+			op_array->function_name, op_array->filename, op_array->line_start, fn->get_error_string().c_str());
 }

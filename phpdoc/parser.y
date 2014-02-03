@@ -43,7 +43,7 @@ int yywrap()
 %token OBRACE CBRACE OBRACKET CBRACKET UNKNOWN
 
 %type <sval> NAME VAR_NAME
-%type <ptype> phpdoc_expression param_declaration param_declarations return_declaration void_expression phpdoc_expressions_including_void phpdoc_expressions_excluding_void
+%type <ptype> phpdoc_expression param_declaration param_declarations return_declaration void_expression phpdoc_compound_expression
 %type <pfunc> function_annotation
 
 %%
@@ -61,11 +61,10 @@ function_annotation:
                 (*result)->set_return(NULL);
         }
         |
-        param_declarations return_declaration param_declarations
+        param_declarations return_declaration ANN_PARAM
         {
                 delete $1;
                 delete $2;
-                delete $3;
                 yyerror(result, "@param declarations may not appear after the @return declaration.");
                 YYERROR;
         }
@@ -110,58 +109,51 @@ param_declaration:
                 YYERROR;
         }
         |
-        ANN_PARAM phpdoc_expressions_including_void
+        ANN_PARAM phpdoc_compound_expression
         {
                 $$ = $2;
         }
         |
-        ANN_PARAM phpdoc_expressions_including_void VAR_NAME
+        ANN_PARAM phpdoc_compound_expression VAR_NAME
         {
                 $$ = $2;
         }
         |
-        ANN_PARAM VARIA phpdoc_expressions_including_void
+        ANN_PARAM VARIA phpdoc_compound_expression
         {
                 $$ = new PHPDoc_Variadic_Type($3);
         }
         |
-        ANN_PARAM VARIA phpdoc_expressions_including_void VAR_NAME
+        ANN_PARAM VARIA phpdoc_compound_expression VAR_NAME
         {
                 $$ = new PHPDoc_Variadic_Type($3);
-                // do something with the VAR_NAME
         }
         ;
-
 
 return_declaration:
-        ANN_RETURN void_expression
+        ANN_RETURN phpdoc_compound_expression VAR_NAME
         {
                 $$ = $2;
         }
         |
-        ANN_RETURN phpdoc_expressions_excluding_void VAR_NAME
-        {
-                $$ = $2;
-        }
-        |
-        ANN_RETURN phpdoc_expressions_excluding_void
+        ANN_RETURN phpdoc_compound_expression
         {
                 $$ = $2;
         }
         ;
 
-phpdoc_expressions_including_void:
-        OPAREN phpdoc_expressions_including_void CPAREN
+phpdoc_compound_expression:
+        OPAREN phpdoc_compound_expression CPAREN
         {
                 $$ = $2;
         }
         |
-        phpdoc_expressions_including_void VBAR phpdoc_expressions_including_void
+        phpdoc_compound_expression VBAR phpdoc_compound_expression
         {
                 $$ = new PHPDoc_Disjunctive_Type($1, $3);
         }
         |
-        phpdoc_expressions_including_void ARR_OF
+        phpdoc_compound_expression ARR_OF
         {
                 $$ = new PHPDoc_ArrayOf_Type($1);
         }
@@ -169,31 +161,6 @@ phpdoc_expressions_including_void:
         void_expression
         |
         phpdoc_expression
-        ;
-
-phpdoc_expressions_excluding_void:
-        OPAREN phpdoc_expressions_excluding_void CPAREN
-        {
-                $$ = $2;
-        }
-        |
-        phpdoc_expressions_excluding_void VBAR phpdoc_expressions_excluding_void
-        {
-                $$ = new PHPDoc_Disjunctive_Type($1, $3);
-        }
-        |
-        phpdoc_expressions_excluding_void ARR_OF
-        {
-                $$ = new PHPDoc_ArrayOf_Type($1);
-        }
-        |
-        phpdoc_expression
-        |
-        void_expression
-        {
-                yyerror(result, "@return declarations may not mix void and values.");
-                YYERROR;
-        }
         ;
 
 phpdoc_expression:
