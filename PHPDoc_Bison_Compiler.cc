@@ -25,7 +25,13 @@ int PHPDoc_Bison_Compiler::compileFunction(zend_op_array* op_array, zend_literal
 
 	PHPDoc_Function fn;
 	PHPDoc_Function *fnptr = &fn;
-	bool is_closure = strcmp(op_array->function_name, "{closure}") == 0;
+
+	// Judge whether this function is a closure or not so we can decide whether to skip it.
+	// All closure function names are suffixed with "{closure}"
+	bool is_closure = false;
+	if (strlen(op_array->function_name) >= 9) {
+		is_closure = (0 == strcmp(op_array->function_name + (strlen(op_array->function_name) - 9), "{closure}"));
+	}
 	bool is_constructor = strncmp(op_array->function_name, "__construct", 12) == 0;
 
 	// NOTE: we _only_ allow functions to _not_ specify valid PHPDoc when either
