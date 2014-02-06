@@ -300,6 +300,10 @@ bool PHPDoc_Callable_Type::matches(zval **z TSRMLS_DC)
 	char *error;
 	zend_bool retval;
 
+	if (!z || !(*z)) {
+		return false;
+	}
+
 	retval = zend_is_callable_ex(*z, NULL, 0, NULL, NULL, NULL, &error TSRMLS_CC);
 	if (error) {
 		/* ignore errors */

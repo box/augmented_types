@@ -36,6 +36,15 @@ function global_fn() {
 }
 
 /**
+* @param string
+* @param callable|void
+* @return string
+*/
+function accept_optional_callable($string, $fn = null) {
+	return $string;
+}
+
+/**
 * @param callable
 * @return string
 */
@@ -48,6 +57,8 @@ echo accept_callables($fn);
 echo accept_callables(new Invokable());
 echo accept_callables([new Targetable(), "go"]);
 echo accept_callables("global_fn");
+echo accept_optional_callable("optional callables work\n");
+echo accept_optional_callable("optional callables work\n", function() {});
 
 accept_callables(["NotAClass", "hey"]);
 
@@ -58,6 +69,8 @@ closure works
 invokable works
 array callable syntax works
 global functions work
+optional callables work
+optional callables work
 
 (.*)Wrong type encountered for argument 1 of function accept_callables, was expecting a callable but got a array
 (.*)
