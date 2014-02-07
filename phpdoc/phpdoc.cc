@@ -267,19 +267,22 @@ void PHPDoc_Primitive_Type::deserialize(zend_uchar *buf)
 
 bool PHPDoc_Numeric_Type::matches(zval **z TSRMLS_DC)
 {
-	switch (Z_TYPE_PP(z)) {
-	case IS_LONG:
-	case IS_DOUBLE:
-		return true;
-
-	case IS_STRING:
-		if (is_numeric_string(Z_STRVAL_PP(z), Z_STRLEN_PP(z), NULL, NULL, 0)) {
-			return true;
-		} else {
-			return false;
-		}
-	default:
+	if (!z || !(*z)) {
 		return false;
+	}
+
+	switch (Z_TYPE_PP(z)) {
+		case IS_LONG:
+		case IS_DOUBLE:
+			return true;
+
+		case IS_STRING:
+			if (is_numeric_string(Z_STRVAL_PP(z), Z_STRLEN_PP(z), NULL, NULL, 0)) {
+				return true;
+			}
+			return false;
+		default:
+			return false;
 	}
 }
 
