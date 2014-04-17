@@ -284,7 +284,7 @@ public:
 	void set_parameters(PHPDoc_Type * first_parameter_type);
 	void set_return(PHPDoc_Type * return_type);
 	PHPDoc_Type *get_return();
-	bool verify_types();
+	bool verify_types(int expected_num_args);
 
 	void enforce_argument_types(zval** params, uint nparams, const char *func_name TSRMLS_DC);
 	void enforce_return_type(zval** returned_value, const char *func_name TSRMLS_DC);

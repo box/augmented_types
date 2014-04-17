@@ -1041,7 +1041,7 @@ void PHPDoc_Function::deserialize(zend_literal *literal)
  * is deemed unsuitable, then this will return false and dump an informative error
  * to the object's error string
  */
-bool PHPDoc_Function::verify_types()
+bool PHPDoc_Function::verify_types(int expected_num_args)
 {
 	assert(!uses_serialized_resources);
 	string type_err_str;
@@ -1063,19 +1063,31 @@ bool PHPDoc_Function::verify_types()
 	}
 
 	// enforce that all argument types are valid
-	int current_arg_num = 1;
+	int arg_num = 0;
+	bool variadic_param_encountered = false;
 	PHPDoc_Type *current_arg = first_parameter_type;
 	while (current_arg) {
+		arg_num++;
 		if (!current_arg->verify_type(&type_err_str)) {
 			stringstream ss;
-			ss << "Error in type for argument " << current_arg_num << ": " << type_err_str;
+			ss << "Error in type for argument " << arg_num << ": " << type_err_str;
 			error_str = ss.str();
 			return false;
 		}
 
+		if (variadic_param_encountered) {
+			error_str = "No additional parameters can follow a variadic parameter!";
+			return false;
+		}
+		if (current_arg->is_variadic()) {
+			variadic_param_encountered = true;
+		}
 		current_arg = current_arg->get_next();
-		current_arg_num++;
 	}
 
+	if (!variadic_param_encountered && arg_num != expected_num_args) {
+		error_str = "The number of PHPDoc parameters given does not match the actual number of function parameters.";
+		return false;
+	}
 	return true;
 }

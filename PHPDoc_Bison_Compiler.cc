@@ -73,7 +73,7 @@ int PHPDoc_Bison_Compiler::compileFunction(zend_op_array* op_array, zend_literal
 	}
 
 	// lastly, verify that this function contains valid types. bail out if it doesnt
-	if (!fn.verify_types()) {
+	if (!fn.verify_types(op_array->num_args)) {
 		phpdoc_delete_buffer(state);
 		throw_compilation_exception(op_array, &fn);
 		return FAILURE;
