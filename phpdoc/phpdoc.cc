@@ -846,7 +846,36 @@ PHPDoc_Type *PHPDoc_Function::get_return()
 	return return_type;
 }
 
-void PHPDoc_Function::enforce_argument_types(zval** params, uint nparams, const char *func_name TSRMLS_DC)
+void PHPDoc_Function::call_error_callback(zval **bad_value, char* type_str_buf, int argnum, zend_op_array *op_array TSRMLS_DC)
+{
+	zval is_void, expected_type, func_name, file_path, line_num, arg_num, val, cb_name, retval;
+	zval *args[7];
+
+	bool val_is_null = (!bad_value || !(*bad_value));
+	if (val_is_null) {
+		ZVAL_NULL(&val);
+	} else {
+		val = **bad_value;
+	}
+	ZVAL_BOOL(&is_void, val_is_null);
+	ZVAL_STRING(&expected_type, type_str_buf, 0);
+	ZVAL_STRING(&func_name, op_array->function_name, 0);
+	ZVAL_STRING(&file_path, op_array->filename, 0);
+	ZVAL_LONG(&line_num, op_array->line_start);
+	ZVAL_LONG(&arg_num, argnum);
+	ZVAL_STRING(&cb_name, ATCG(error_callback_name), 0);
+	args[0] = &val;
+	args[1] = &is_void;
+	args[2] = &expected_type;
+	args[3] = &func_name;
+	args[4] = &file_path;
+	args[5] = &line_num;
+	args[6] = &arg_num;
+
+	call_user_function(EG(function_table), NULL, &cb_name, &retval, 7, args TSRMLS_CC);
+}
+
+void PHPDoc_Function::enforce_argument_types(zval** params, uint nparams, zend_op_array *op_array TSRMLS_DC)
 {
 	// enforce_argument_types must _only_ be called on serialized functions
 	assert( uses_serialized_resources );
@@ -860,15 +889,23 @@ void PHPDoc_Function::enforce_argument_types(zval** params, uint nparams, const 
 
 		// if we have passed more arguments than doc specifications
 		if (type_buffer_ptr == NULL) {
-			get_zval_typestr(param, zval_typestr_buf, 64 TSRMLS_CC);
-			zend_error(E_ERROR, "Too many arguments provided for function %s, was expecting nothing but got a %s\n",
-					func_name, zval_typestr_buf);
+			if (ATCG(error_callback_name)) {
+				call_error_callback(param, "void", i+1, op_array TSRMLS_CC);
+			} else {
+				get_zval_typestr(param, zval_typestr_buf, 64 TSRMLS_CC);
+				zend_error(E_ERROR, "Too many arguments provided for function %s, was expecting nothing but got a %s\n",
+						op_array->function_name, zval_typestr_buf);
+			}
 		}
 		// otherwise, ensure that the param's type matches our expectations.
 		else if (!fast_match_type((zend_uchar *)(type_buffer_ptr + sizeof(int)), param, type_string_buf, 64 TSRMLS_CC)) {
-			get_zval_typestr(param, zval_typestr_buf, 64 TSRMLS_CC);
-			zend_error(E_ERROR, "Wrong type encountered for argument %u of function %s, was expecting a %s but got a %s\n",
-					(i + 1), func_name, type_string_buf, zval_typestr_buf);
+			if (ATCG(error_callback_name)) {
+				call_error_callback(param, type_string_buf, i+1, op_array TSRMLS_CC);
+			} else {
+				get_zval_typestr(param, zval_typestr_buf, 64 TSRMLS_CC);
+				zend_error(E_ERROR, "Wrong type encountered for argument %u of function %s, was expecting a %s but got a %s\n",
+						(i + 1), op_array->function_name, type_string_buf, zval_typestr_buf);
+			}
 		}
 
 		type_buffer_ptr = advance_type_pointer(type_buffer_ptr);
@@ -884,8 +921,12 @@ void PHPDoc_Function::enforce_argument_types(zval** params, uint nparams, const 
 
 		// only a void type will match a null pointer
 		if (!fast_match_type((zend_uchar *)(type_buffer_ptr + sizeof(int)), NULL, type_string_buf, 64 TSRMLS_CC)) {
-			zend_error(E_ERROR, "Wrong type encountered for argument %u of function %s, was expecting a %s but no argument was passed\n",
-					arg_num, func_name, type_string_buf);
+			if (ATCG(error_callback_name)) {
+				call_error_callback(NULL, type_string_buf, arg_num, op_array TSRMLS_CC);
+			} else {
+				zend_error(E_ERROR, "Wrong type encountered for argument %u of function %s, was expecting a %s but no argument was passed\n",
+						arg_num, op_array->function_name, type_string_buf);
+			}
 		}
 		type_buffer_ptr = advance_type_pointer(type_buffer_ptr);
 		arg_num++;
@@ -906,7 +947,7 @@ char *PHPDoc_Function::advance_type_pointer(char *current)
 	return (current + next_offset);
 }
 
-void PHPDoc_Function::enforce_return_type(zval** returned_value, const char *func_name TSRMLS_DC)
+void PHPDoc_Function::enforce_return_type(zval** returned_value, zend_op_array *op_array TSRMLS_DC)
 {
 	char type_string_buf[64];
 	char zval_typestr_buf[64];
@@ -937,9 +978,13 @@ void PHPDoc_Function::enforce_return_type(zval** returned_value, const char *fun
 			return;
 		}
 
-		get_zval_typestr(returned_value, zval_typestr_buf, 64 TSRMLS_CC);
-		zend_error(E_ERROR, "Wrong type returned by function %s, was expecting a %s but got a %s\n",
-				func_name, type_string_buf, zval_typestr_buf);
+		if (ATCG(error_callback_name)) {
+			call_error_callback(returned_value, type_string_buf, -1, op_array TSRMLS_CC);
+		} else {
+			get_zval_typestr(returned_value, zval_typestr_buf, 64 TSRMLS_CC);
+			zend_error(E_ERROR, "Wrong type returned by function %s, was expecting a %s but got a %s\n",
+					op_array->function_name, type_string_buf, zval_typestr_buf);
+		}
 	}
 }
 
