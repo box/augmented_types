@@ -90,7 +90,7 @@ param_declarations:
                         }
                         else {
                                 yyerror(result, "variadic arguments cannot be followed by regular arguments");
-                                YYERROR;
+                                $$ = $1;
                         }
                 }
                 else {
@@ -103,10 +103,16 @@ param_declarations:
 param_declaration:
         ANN_PARAM VAR_NAME
         {
-                char errbuf[128];
-                snprintf(errbuf, 128, "You MUST specify a type for variable %s", (char*)$2);
-                yyerror(result, errbuf);
-                YYERROR;
+                // NOTE: Upon encountering invalid PHPDoc, we just return void types on error and
+                // set the error string. This simplifies cleaning up memory after parsing fails
+                yyerror(result, "You MUST specify a type for all parameters");
+                $$ = new PHPDoc_Void_Type();
+        }
+        |
+        ANN_PARAM UNKNOWN
+        {
+                yyerror(result, "Invalid parameter type - unknown character encountered");
+                $$ = new PHPDoc_Void_Type();
         }
         |
         ANN_PARAM phpdoc_compound_expression
@@ -131,6 +137,12 @@ param_declaration:
         ;
 
 return_declaration:
+        ANN_RETURN UNKNOWN
+        {
+                yyerror(result, "Invalid return type - unknown character encountered");
+                $$ = new PHPDoc_Void_Type();
+        }
+        |
         ANN_RETURN phpdoc_compound_expression VAR_NAME
         {
                 $$ = $2;

@@ -15,4 +15,4 @@ function bar($x) {
 
 ?>
 --EXPECTREGEX--
-.*Function annotation compilation failed for function bar in file .*ensure_not_specifying_argtype_fails.php at line (\d)*, error message: You MUST specify a type for variable \$x.*
+.*Function annotation compilation failed for function bar in file .*ensure_not_specifying_argtype_fails.php at line (\d)*, error message: You MUST specify a type for all parameters.*

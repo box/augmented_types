@@ -76,7 +76,7 @@ resource                                          return ANN_RESOURCE;
 \>                                                return CGEN_OF;
 [a-zA-Z\_\\][a-zA-Z\_0-9\\]*                      phpdoclval.sval=phpdoctext; return NAME;
 \*                                                return VARIA;
-[^a-zA-Z]                                         return UNKNOWN;
+[^a-zA-Z]                                         { BEGIN(PHPDOC_COMMENT); return UNKNOWN; }
 
 <PHPDOC_END_EXPR,PHPDOC_START_EXPR>\$[a-zA-Z\_][a-zA-Z\_0-9]*        {
                                                     BEGIN(PHPDOC_COMMENT);

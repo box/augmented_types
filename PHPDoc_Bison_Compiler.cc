@@ -21,10 +21,11 @@ extern void phpdoc_delete_buffer(yy_buffer_state* st);
 int PHPDoc_Bison_Compiler::compileFunction(zend_op_array* op_array, zend_literal *literal)
 {
 	DPRINTF("Compiling function %s\n", op_array->function_name);
-	//DPRINTF("PHPDoc_Bison_Compiler doc_comment: %s\n", op_array->doc_comment);
 
 	PHPDoc_Function fn;
 	PHPDoc_Function *fnptr = &fn;
+	// NOTE: a non-empty error string signifies that this function has failed compilation
+	fn.set_error_string("");
 
 	// Judge whether this function is a closure or not so we can decide whether to skip it.
 	// All closure function names are suffixed with "{closure}"
@@ -60,7 +61,7 @@ int PHPDoc_Bison_Compiler::compileFunction(zend_op_array* op_array, zend_literal
 	DPRINTF("phpdocparse returned %d\n", result);
 
 	// if lexing and/or parsing failed: cleanup, throw an exception, and bail!
-	if (result != 0) {
+	if (result != 0 || fn.get_error_string().length()) {
 		phpdoc_delete_buffer(state);
 		throw_compilation_exception(op_array, &fn);
 		return FAILURE;
