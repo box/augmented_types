@@ -286,8 +286,8 @@ public:
 	PHPDoc_Type *get_return();
 	bool verify_types(int expected_num_args);
 
-	void enforce_argument_types(zval** params, uint nparams, const char *func_name TSRMLS_DC);
-	void enforce_return_type(zval** returned_value, const char *func_name TSRMLS_DC);
+	void enforce_argument_types(zval** params, uint nparams, zend_op_array *op_array TSRMLS_DC);
+	void enforce_return_type(zval** returned_value, zend_op_array *op_array TSRMLS_DC);
 	void debug();
 	void set_error_string(string err);
 	string get_error_string();
@@ -305,6 +305,7 @@ private:
 	bool uses_serialized_resources;
 	char *advance_type_pointer(char *current);
 	void init_resources();
+	void call_error_callback(zval **bad_value, char* type_str_buf, int argnum, zend_op_array *op_array TSRMLS_DC);
 };
 
 #endif /* AUGMENTED_TYPES_PHPDOC_PHPDOC_H_ */

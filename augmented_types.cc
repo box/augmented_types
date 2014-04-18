@@ -146,7 +146,7 @@ void augmented_types_execute_ex(zend_execute_data *execute_data TSRMLS_DC) {
 		DPRINTF("ENFORCING FROM EXECUTE::::");
 		DPRINTF("for function %s\n", op_array->function_name);
 		PHPDoc_Function func(enforcement_literal);
-		func.enforce_argument_types(args, num_args, op_array->function_name TSRMLS_CC);
+		func.enforce_argument_types(args, num_args, op_array TSRMLS_CC);
 
 #if PHP_VERSION_ID < 50500
 		old_execute(op_array TSRMLS_CC);
@@ -154,7 +154,7 @@ void augmented_types_execute_ex(zend_execute_data *execute_data TSRMLS_DC) {
 		old_execute_ex(execute_data TSRMLS_CC);
 #endif /* PHP_VERSION_ID < 50500 */
 
-		func.enforce_return_type(EG(return_value_ptr_ptr), op_array->function_name TSRMLS_CC);
+		func.enforce_return_type(EG(return_value_ptr_ptr), op_array TSRMLS_CC);
 		return;
 	}
 
@@ -175,6 +175,9 @@ static void augmented_types_deactivate(void)
 	free_file_list(ATCG(blacklist_head));
 	ATCG(whitelist_head) = NULL;
 	ATCG(blacklist_head) = NULL;
+	if (ATCG(error_callback_name)) {
+		efree((void *) ATCG(error_callback_name));
+	}
 }
 
 //// BEGIN BOILERPLATE //////

@@ -24,6 +24,10 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_augmented_types_whitelist, 0, 0, 1)
 	ZEND_ARG_INFO(0, whitelist_file_array)
 ZEND_END_ARG_INFO()
 
+ZEND_BEGIN_ARG_INFO_EX(arginfo_augmented_types_register_type_error_callback, 0, 0, 1)
+	ZEND_ARG_INFO(0, callback_name_string)
+ZEND_END_ARG_INFO()
+
 /**
  * Helper function to add filenames in array 'arr' to the passed in file linked list
  */
@@ -93,6 +97,26 @@ ZEND_FUNCTION(augmented_types_whitelist)
 	RETURN_LONG( prepend_paths_to_file_linked_list(Z_ARRVAL_P(arr), &(ATCG(whitelist_head)) TSRMLS_CC) );
 }
 
+ZEND_FUNCTION(augmented_types_register_type_error_callback)
+{
+	zval *callback_str;
+	if (zend_parse_parameters(ZEND_NUM_ARGS() TSRMLS_CC, "z", &callback_str) == FAILURE) {
+		RETURN_NULL();
+	}
+
+	// ensure that zarray is in fact an array
+	if (Z_TYPE_P(callback_str) != IS_STRING) {
+		zend_throw_exception(spl_ce_InvalidArgumentException,
+				"augmented_types_register_type_error_callback only takes a string that is a valid function name!", 0 TSRMLS_CC);
+		return;
+	}
+
+	char *cb_buf = (char*) emalloc(1 + Z_STRLEN_P(callback_str));
+	strncpy(cb_buf, Z_STRVAL_P(callback_str), Z_STRLEN_P(callback_str));
+	cb_buf[Z_STRLEN_P(callback_str)] = 0;
+	ATCG(error_callback_name) = cb_buf;
+}
+
 ZEND_MINIT_FUNCTION(augmented_types)
 {
 	REGISTER_INI_ENTRIES();
@@ -102,6 +126,7 @@ ZEND_MINIT_FUNCTION(augmented_types)
 static zend_function_entry augmented_types_functions[] = {
 	ZEND_FE(augmented_types_blacklist, arginfo_augmented_types_blacklist)
 	ZEND_FE(augmented_types_whitelist, arginfo_augmented_types_whitelist)
+	ZEND_FE(augmented_types_register_type_error_callback, arginfo_augmented_types_register_type_error_callback)
 	{NULL, NULL, NULL}
 };
 

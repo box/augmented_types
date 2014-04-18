@@ -30,6 +30,7 @@ typedef struct _augmented_types_globals {
 	long compilation_error_level;
 	const char *current_namespaced_entity; 	// The current namespaced entity that we are compiling annotations for.
 	int current_namespace_prefix_len;		// It is either a classname or a global function name.
+	const char *error_callback_name;		// The name of the callback we call on runtime type errors. Init-ed to NULL
 } augmented_types_globals;
 
 #ifdef ZTS
