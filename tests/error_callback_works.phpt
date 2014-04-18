@@ -62,6 +62,14 @@ function mixer($in = false) {
 }
 $a = mixer();
 $b = mixer(1); // NULL will be filled in for the return value
+
+/**
+ * @return void
+ */
+function hodor() {
+	echo "hodor!\n";
+}
+hodor("hodor");
 ?>
 --EXPECTREGEX--
 Got a type error from file .* at line number .* in function negate. The expected type of argument 1 was uint and the actual value was:
@@ -86,3 +94,6 @@ Got a type error from file .* at line number .* in function mixer. The expected 
 1
 Got a type error from file .* at line number .* in function mixer. The expected type of the return value was boolean and the actual value was:
 NULL
+
+Got a type error from file .* at line number .* in function hodor. The expected type of argument 1 was void and the actual value was:
+string\(5\) "hodor"

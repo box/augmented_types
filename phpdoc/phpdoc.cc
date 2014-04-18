@@ -857,8 +857,6 @@ void PHPDoc_Function::call_error_callback(zval **bad_value, char* type_str_buf, 
 	} else {
 		val = **bad_value;
 	}
-	// TODO - what about reffiness and copying?? will the world blow up if the str is modified and/or refcounts are init-ed w/ garbage?
-	// do due diligence and look how other extensions do it.
 	ZVAL_BOOL(&is_void, val_is_null);
 	ZVAL_STRING(&expected_type, type_str_buf, 0);
 	ZVAL_STRING(&func_name, op_array->function_name, 0);
@@ -892,7 +890,7 @@ void PHPDoc_Function::enforce_argument_types(zval** params, uint nparams, zend_o
 		// if we have passed more arguments than doc specifications
 		if (type_buffer_ptr == NULL) {
 			if (ATCG(error_callback_name)) {
-				call_error_callback(param, "<no annotation present>", i+1, op_array TSRMLS_CC);
+				call_error_callback(param, "void", i+1, op_array TSRMLS_CC);
 			} else {
 				get_zval_typestr(param, zval_typestr_buf, 64 TSRMLS_CC);
 				zend_error(E_ERROR, "Too many arguments provided for function %s, was expecting nothing but got a %s\n",
