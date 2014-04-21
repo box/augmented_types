@@ -10,9 +10,9 @@
 
 /* Parse out the relevant ini values */
 ZEND_INI_BEGIN()
-	STD_PHP_INI_ENTRY((char *) "augmented_types.enforce_by_default", (char *) "0", PHP_INI_ALL, OnUpdateBool,
+	STD_PHP_INI_ENTRY("augmented_types.enforce_by_default", "0", PHP_INI_ALL, OnUpdateBool,
 			enforce_by_default, augmented_types_globals, at_globals)
-	STD_PHP_INI_ENTRY((char *) "augmented_types.compilation_error_level", (char *) "1" /* 1 == E_ERROR */, PHP_INI_ALL, OnUpdateLong,
+	STD_PHP_INI_ENTRY("augmented_types.compilation_error_level", "1" /* 1 == E_ERROR */, PHP_INI_ALL, OnUpdateLong,
 			compilation_error_level, augmented_types_globals, at_globals)
 ZEND_INI_END()
 
