@@ -305,7 +305,7 @@ private:
 	bool uses_serialized_resources;
 	char *advance_type_pointer(char *current);
 	void init_resources();
-	void call_error_callback(zval **bad_value, char* type_str_buf, int argnum, zend_op_array *op_array TSRMLS_DC);
+	void call_error_callback(zval **bad_value, const char* type_str_buf, int argnum, zend_op_array *op_array TSRMLS_DC);
 };
 
 #endif /* AUGMENTED_TYPES_PHPDOC_PHPDOC_H_ */

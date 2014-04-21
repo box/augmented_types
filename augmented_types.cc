@@ -187,22 +187,22 @@ static void augmented_types_deactivate(void)
 #endif
 
 ZEND_EXT_API zend_extension zend_extension_entry = {
-	PHP_AUGMENTED_TYPES_EXTNAME,			/* name */
-	PHP_AUGMENTED_TYPES_VERSION,			/* version */
-	"jmarrama@box.com, abishopric@box.com",	/* author */
-	"http://www.box.com/",					/* URL */
-	"Copyright (c) 2013",					/* copyright */
-	augmented_types_start,					/* startup */
-	NULL,									/* shutdown */
-	NULL,									/* per-script activation */
-	augmented_types_deactivate,				/* per-script deactivation */
-	NULL,									/* message handler */
-	NULL,									/* op_array handler */
-	NULL,									/* extended statement handler */
-	NULL,									/* extended fcall begin handler */
-	NULL,									/* extended fcall end handler */
-	NULL,									/* op_array ctor */
-	NULL,									/* op_array dtor */
+	(char *) PHP_AUGMENTED_TYPES_EXTNAME,				/* name */
+	(char *) PHP_AUGMENTED_TYPES_VERSION,				/* version */
+	(char *) "jmarrama@box.com, abishopric@box.com",	/* author */
+	(char *) "http://www.box.com/",						/* URL */
+	(char *) "Copyright (c) 2013",						/* copyright */
+	augmented_types_start,								/* startup */
+	NULL,												/* shutdown */
+	NULL,												/* per-script activation */
+	augmented_types_deactivate,							/* per-script deactivation */
+	NULL,												/* message handler */
+	NULL,												/* op_array handler */
+	NULL,												/* extended statement handler */
+	NULL,												/* extended fcall begin handler */
+	NULL,												/* extended fcall end handler */
+	NULL,												/* op_array ctor */
+	NULL,												/* op_array dtor */
 	STANDARD_ZEND_EXTENSION_PROPERTIES
 };
 

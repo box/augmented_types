@@ -846,7 +846,7 @@ PHPDoc_Type *PHPDoc_Function::get_return()
 	return return_type;
 }
 
-void PHPDoc_Function::call_error_callback(zval **bad_value, char* type_str_buf, int argnum, zend_op_array *op_array TSRMLS_DC)
+void PHPDoc_Function::call_error_callback(zval **bad_value, const char* type_str_buf, int argnum, zend_op_array *op_array TSRMLS_DC)
 {
 	zval cb_name;
 	zval *retval;
