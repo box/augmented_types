@@ -848,31 +848,39 @@ PHPDoc_Type *PHPDoc_Function::get_return()
 
 void PHPDoc_Function::call_error_callback(zval **bad_value, char* type_str_buf, int argnum, zend_op_array *op_array TSRMLS_DC)
 {
-	zval is_void, expected_type, func_name, file_path, line_num, arg_num, val, cb_name, retval;
+	zval cb_name;
+	zval *retval;
 	zval *args[7];
+	bool val_is_void = (!bad_value || !(*bad_value));
 
-	bool val_is_null = (!bad_value || !(*bad_value));
-	if (val_is_null) {
-		ZVAL_NULL(&val);
-	} else {
-		val = **bad_value;
+	for (int i = 1; i < 7; i++) {
+		MAKE_STD_ZVAL(args[i]);
 	}
-	ZVAL_BOOL(&is_void, val_is_null);
-	ZVAL_STRING(&expected_type, type_str_buf, 0);
-	ZVAL_STRING(&func_name, op_array->function_name, 0);
-	ZVAL_STRING(&file_path, op_array->filename, 0);
-	ZVAL_LONG(&line_num, op_array->line_start);
-	ZVAL_LONG(&arg_num, argnum);
-	ZVAL_STRING(&cb_name, ATCG(error_callback_name), 0);
-	args[0] = &val;
-	args[1] = &is_void;
-	args[2] = &expected_type;
-	args[3] = &func_name;
-	args[4] = &file_path;
-	args[5] = &line_num;
-	args[6] = &arg_num;
+	MAKE_STD_ZVAL(retval);
 
-	call_user_function(EG(function_table), NULL, &cb_name, &retval, 7, args TSRMLS_CC);
+	if (val_is_void) {
+		MAKE_STD_ZVAL(args[0]);
+		ZVAL_NULL(args[0]);
+	} else {
+		args[0] = *bad_value;
+	}
+	ZVAL_BOOL(args[1], val_is_void);
+	ZVAL_STRING(args[2], type_str_buf, 1);
+	ZVAL_STRING(args[3], op_array->function_name, 1);
+	ZVAL_STRING(args[4], op_array->filename, 1);
+	ZVAL_LONG(args[5], op_array->line_start);
+	ZVAL_LONG(args[6], argnum);
+	ZVAL_STRING(&cb_name, ATCG(error_callback_name), 0);
+
+	call_user_function(EG(function_table), NULL, &cb_name, retval, 7, args TSRMLS_CC);
+
+	for (int i = 1; i < 7; i++) {
+		zval_ptr_dtor(&args[i]);
+	}
+	zval_ptr_dtor(&retval);
+	if (val_is_void) {
+		zval_ptr_dtor(&args[0]);
+	}
 }
 
 void PHPDoc_Function::enforce_argument_types(zval** params, uint nparams, zend_op_array *op_array TSRMLS_DC)
