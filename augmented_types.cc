@@ -177,6 +177,7 @@ static void augmented_types_deactivate(void)
 	ATCG(blacklist_head) = NULL;
 	if (ATCG(error_callback_name)) {
 		efree((void *) ATCG(error_callback_name));
+		ATCG(error_callback_name) = NULL;
 	}
 }
 
