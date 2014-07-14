@@ -86,26 +86,20 @@ static int augmented_types_start(zend_extension *extension)
 
 zend_op_array *augmented_types_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
-	// must be called before old_compile_file to ensure we can accurately judge
-	// what functions and classes old_compile_file adds
-	prepare_compiler_state(TSRMLS_C);
-
 	zend_op_array *op_array = old_compile_file(file_handle, type TSRMLS_CC);
 
 	DPRINTF("FROM COMPILE::::\n");
 	DPRINTF("\t\t\tFor filename = %s\n", file_handle->filename);
 
-	if (should_compile_file(file_handle->filename TSRMLS_CC)) {
-		int num_annotations_compiled = compile_new_user_function_annotations(TSRMLS_C);
+	int num_annotations_compiled = compile_new_user_function_annotations(TSRMLS_C);
 
-		if (AT_DEBUG) {
-			if (num_annotations_compiled > 0) {
-				DPRINTF("success compiling annotations! %d new annotations compiled\n\n", num_annotations_compiled);
-			} else if (num_annotations_compiled == 0) {
-				DPRINTF("no new annotations compiled\n\n");
-			} else {
-				DPRINTF("failure compiling annotations\n\n");
-			}
+	if (AT_DEBUG) {
+		if (num_annotations_compiled > 0) {
+			DPRINTF("success compiling annotations! %d new annotations compiled\n\n", num_annotations_compiled);
+		} else if (num_annotations_compiled == 0) {
+			DPRINTF("no new annotations compiled\n\n");
+		} else {
+			DPRINTF("failure compiling annotations\n\n");
 		}
 	}
 
@@ -114,14 +108,8 @@ zend_op_array *augmented_types_compile_file(zend_file_handle *file_handle, int t
 
 zend_op_array* augmented_types_compile_string(zval* source_string, char *filename TSRMLS_DC)
 {
-	prepare_compiler_state(TSRMLS_C);
 	zend_op_array *res = old_compile_string(source_string, filename TSRMLS_CC);
-
-	// check if we should compile new functions produced by this eval-ed string
-	if (should_compile_file(filename TSRMLS_CC)) {
-		compile_new_user_function_annotations(TSRMLS_C);
-	}
-
+	compile_new_user_function_annotations(TSRMLS_C);
 	return res;
 }
 

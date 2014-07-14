@@ -30,7 +30,14 @@ class Bar extends Foo
 }
 
 $o = new Bar();
-echo $o->inc_int(2);
+var_dump( $o->inc_int(2) );
+$o->barbar();
+$o->inc_int("foo");
+
 ?>
---EXPECT--
-44
+--EXPECTREGEX--
+int\(44\)
+barbarbar
+
+Fatal error:.*
+.*

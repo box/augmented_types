@@ -23,11 +23,29 @@ function multiply_all($start)
 echo implode(multiply_all(2.0, 1.1, 2.2, 3.3), " ") . "\n";
 echo implode(multiply_all(1.0)) . "\n";
 
+/**
+* @param *string|int|null
+* @return void
+*/
+function foo()
+{
+	$args = func_get_args();
+	foreach ($args as $arg) {
+		var_dump($arg);
+	}
+}
+
+foo("hello", 42, "bye", null);
+
 echo multiply_all(2.0, 5);
 ?>
 --EXPECTREGEX--
 2.2 4.4 6.6
 
+string\(5\) "hello"
+int\(42\)
+string\(3\) "bye"
+NULL
 
 Fatal error: Wrong type encountered for argument 2 of function multiply_all, was expecting a \*\(float\) but got a \(int\) 5
 .*

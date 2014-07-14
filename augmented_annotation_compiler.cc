@@ -12,7 +12,7 @@
 int compile_user_function(zend_op_array *func)
 {
 	// first, ensure that this function hasn't already been compiled
-	// if it has, ensure that the literals array is the right thing and then exit
+	// if it has, ensure everything is correctly assigned
 	zend_literal *enforcer = get_enforcement_literal(func);
 	if (enforcer) {
 		if (enforcer != func->literals) {
@@ -152,26 +152,32 @@ int compile_new_global_user_functions(TSRMLS_D)
 	for (; zend_hash_get_current_data_ex(function_table, (void**) &func, &temp_pos) == SUCCESS;
 	        zend_hash_move_forward_ex(function_table, &temp_pos)) {
 
-		// if this function has a doc comment, compile it!
-		if (func->type == ZEND_USER_FUNCTION) {
-			DPRINTF("ATTEMPTING TO COMPILE name = %s\n", func->common.function_name);
+		// always advance the global function table pointer
+		ATCG(func_pos) = temp_pos;
 
-			// if this function lives in a namespace, be sure to set the namespace prefix so we
-			// can use it later when compiling classname annotations
-			int namespace_prefix_len =
-				get_namespace_prefix_length(func->common.function_name, strlen(func->common.function_name));
-			if ( namespace_prefix_len ) {
-				ATCG(current_namespaced_entity) = func->common.function_name;
-				ATCG(current_namespace_prefix_len) = namespace_prefix_len;
-			}
-
-			if (compile_user_function(&(func->op_array))) {
-				num_funcs_added++;
-			}
-
-			ATCG(current_namespaced_entity) = NULL;
-			ATCG(current_namespace_prefix_len) = 0;
+		// only compile valid functions in whitelisted files
+		if (func->type != ZEND_USER_FUNCTION ||
+				!should_compile_file(func->op_array.filename TSRMLS_CC)) {
+			continue;
 		}
+
+		DPRINTF("ATTEMPTING TO COMPILE name = %s\n", func->common.function_name);
+
+		// if this function lives in a namespace, be sure to set the namespace prefix so we
+		// can use it later when compiling classname annotations
+		int namespace_prefix_len =
+			get_namespace_prefix_length(func->common.function_name, strlen(func->common.function_name));
+		if ( namespace_prefix_len ) {
+			ATCG(current_namespaced_entity) = func->common.function_name;
+			ATCG(current_namespace_prefix_len) = namespace_prefix_len;
+		}
+
+		if (compile_user_function(&(func->op_array))) {
+			num_funcs_added++;
+		}
+
+		ATCG(current_namespaced_entity) = NULL;
+		ATCG(current_namespace_prefix_len) = 0;
 	}
 	return num_funcs_added;
 }
@@ -190,8 +196,8 @@ int add_class_instance_methods(zend_class_entry *ce TSRMLS_DC)
 	HashTable *func_table = &(ce->function_table);
 
 	for (zend_hash_internal_pointer_reset_ex(func_table, &method_pos);
-	        zend_hash_get_current_data_ex(func_table, (void **) &func, &method_pos) == SUCCESS;
-	        zend_hash_move_forward_ex(func_table, &method_pos)) {
+			zend_hash_get_current_data_ex(func_table, (void **) &func, &method_pos) == SUCCESS;
+			zend_hash_move_forward_ex(func_table, &method_pos)) {
 
 		// skip functions that aren't user functions
 		if (func->type != ZEND_USER_FUNCTION) {
@@ -201,9 +207,9 @@ int add_class_instance_methods(zend_class_entry *ce TSRMLS_DC)
 		DPRINTF("inspecting instance method %s at %p\n", func->common.function_name, func);
 		DPRINTF("instance method filename = %s\n", func->op_array.filename);
 
-		// we must once again ensure that we should compile this method using the blacklist + whitelist
-		// NOTE: this normally would not be necessary, but zend makes some weird optimizations
-		// when compiling an empty class that extends another class
+		// we must once again ensure that we should compile this method using the
+		// blacklist + whitelist NOTE: this normally would not be necessary, but
+		// zend re-uses op_arrays for inherited instance methods
 		// PS: To save CPU cycles, only check the whitelist + blacklist if this
 		// function resides in a different file than the class
 		if (strncmp(class_file, func->op_array.filename, class_file_strlen) == 0 ||
@@ -243,27 +249,34 @@ int compile_new_instance_method_annotations(TSRMLS_D)
 	for (; zend_hash_get_current_data_ex(class_table, (void **) &pce, &temp_pos) == SUCCESS;
 	        zend_hash_move_forward_ex(class_table, &temp_pos)) {
 
-		if ((*pce)->type == ZEND_USER_CLASS) {
-			DPRINTF("\t\t\tADDING new type enforcement info for class %s\n", (*pce)->name);
+		// always advance our global class table position
+		ATCG(class_pos) = temp_pos;
 
-			int namespace_prefix_len = get_namespace_prefix_length((*pce)->name, (int) (*pce)->name_length);
-			if (namespace_prefix_len) {
-				ATCG(current_namespaced_entity) = (*pce)->name;
-				ATCG(current_namespace_prefix_len) = namespace_prefix_len;
-			}
-
-			// now, we must iterate through its methods!
-			num_instance_methods_added = add_class_instance_methods(*pce TSRMLS_CC);
-			if (num_instance_methods_added == -1) {
-				DPRINTF("ERROR ADDING ANNOTATIONS FOR CLASS %s\n", (*pce)->name);
-			} else {
-				num_methods_added += num_instance_methods_added;
-			}
-
-			// always reset the current namespaced entity..
-			ATCG(current_namespaced_entity) = NULL;
-			ATCG(current_namespace_prefix_len) = 0;
+		// only compile valid classes declared in whitelisted files
+		if ((*pce)->type != ZEND_USER_CLASS ||
+				!should_compile_file((*pce)->info.user.filename TSRMLS_CC)) {
+			continue;
 		}
+
+		DPRINTF("\t\t\tADDING new type enforcement info for class %s\n", (*pce)->name);
+
+		int namespace_prefix_len = get_namespace_prefix_length((*pce)->name, (int) (*pce)->name_length);
+		if (namespace_prefix_len) {
+			ATCG(current_namespaced_entity) = (*pce)->name;
+			ATCG(current_namespace_prefix_len) = namespace_prefix_len;
+		}
+
+		// now, we must iterate through its methods!
+		num_instance_methods_added = add_class_instance_methods(*pce TSRMLS_CC);
+		if (num_instance_methods_added == -1) {
+			DPRINTF("ERROR ADDING ANNOTATIONS FOR CLASS %s\n", (*pce)->name);
+		} else {
+			num_methods_added += num_instance_methods_added;
+		}
+
+		// always reset the current namespaced entity..
+		ATCG(current_namespaced_entity) = NULL;
+		ATCG(current_namespace_prefix_len) = 0;
 	}
 
 	return num_methods_added;
@@ -277,16 +290,5 @@ int compile_new_instance_method_annotations(TSRMLS_D)
 int compile_new_user_function_annotations(TSRMLS_D)
 {
 	return compile_new_instance_method_annotations(TSRMLS_C) +
-	       compile_new_global_user_functions(TSRMLS_C);
-}
-
-/**
- * Init the class and function table last_position pointers to be at the end
- * of their respective hash tables
- * ASSUMPTION: zend_compile appends new classes/functions
- */
-void prepare_compiler_state(TSRMLS_D)
-{
-	zend_hash_internal_pointer_end_ex(CG(class_table), &ATCG(class_pos));
-	zend_hash_internal_pointer_end_ex(CG(function_table), &ATCG(func_pos));
+		compile_new_global_user_functions(TSRMLS_C);
 }

@@ -43,9 +43,6 @@ void print_op_code(zend_uchar opcode)
 	case ZEND_ECHO:
 		DPRINTF("ZEND_ECHO\n");
 		break;
-	case ENFORCE_OPCODE:
-		DPRINTF("ENFORCE_OPCODE\n");
-		break;
 	default:
 		DPRINTF("opcode = %u\n", opcode);
 	}
