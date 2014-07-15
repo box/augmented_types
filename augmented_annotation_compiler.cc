@@ -4,17 +4,91 @@
 #include "zend_types.h"
 #include "PHPDoc_Bison_Compiler.h"
 
+bool should_compile_file(const char* path TSRMLS_DC);
+
+/**
+ * Helper method to get the next hash table position. Returns 1
+ * on success, 0 on failure (that is, when pos is at the end).
+ * If *pos == NULL, will move pos to the starting position of table
+ */
+int get_next_hashtable_pos(HashTable *table, HashPosition *pos)
+{
+	if (*pos == NULL) {
+		zend_hash_internal_pointer_reset_ex(table, pos);
+	} else {
+		zend_hash_move_forward_ex(table, pos);
+	}
+	if (*pos == NULL) {
+		return 0;
+	}
+	return 1;
+}
+
+int get_num_whitelisted_op_refs_in_function_table(HashTable* function_table, HashPosition pos, zend_op *opcodes TSRMLS_DC)
+{
+	int count = 0;
+	zend_function *func;
+	for (; zend_hash_get_current_data_ex(function_table, (void **) &func, &pos) == SUCCESS;
+			zend_hash_move_forward_ex(function_table, &pos)) {
+		if (func->type != ZEND_USER_FUNCTION) {
+			continue;
+		}
+		if (func->op_array.opcodes == opcodes && should_compile_file(func->op_array.filename TSRMLS_CC)) {
+			count++;
+		}
+	}
+	return count;
+}
+
+int get_num_whitelisted_op_refs_in_class_table(HashPosition pos, zend_op *opcodes TSRMLS_DC)
+{
+	int count = 0;
+	zend_class_entry **pce;
+	HashPosition class_func_table_pos = NULL;
+	for (; zend_hash_get_current_data_ex(CG(class_table), (void **) &pce, &pos) == SUCCESS;
+	        zend_hash_move_forward_ex(CG(class_table), &pos)) {
+		if ((*pce)->type != ZEND_USER_CLASS) {
+			continue;
+		}
+		HashTable *func_table = &((*pce)->function_table);
+		zend_hash_internal_pointer_reset_ex(func_table, &class_func_table_pos);
+		count += get_num_whitelisted_op_refs_in_function_table(func_table, class_func_table_pos, opcodes TSRMLS_CC);
+	}
+	return count;
+}
+
+/**
+ * Helper method to get the number of functions in this compilation pass that
+ * will be compiled that reference a particular array of opcodes. This is needed
+ * to ensure that we will compile _all_ refrences to this op array so that we
+ * can safely destroy the old literals array
+ */
+int get_num_whitelisted_op_array_refs_in_sweep(zend_op* opcodes TSRMLS_DC)
+{
+	HashPosition func_table_pos = ATCG(func_table_sweep_start);
+	HashPosition class_table_pos = ATCG(class_table_sweep_start);
+	int num_whitelisted_op_array_refs = 0;
+	if (get_next_hashtable_pos(CG(class_table), &class_table_pos)) {
+		num_whitelisted_op_array_refs += get_num_whitelisted_op_refs_in_class_table(class_table_pos, opcodes TSRMLS_CC);
+	}
+	if (get_next_hashtable_pos(CG(function_table), &func_table_pos)) {
+		num_whitelisted_op_array_refs += get_num_whitelisted_op_refs_in_function_table(CG(function_table), func_table_pos, opcodes TSRMLS_CC);
+	}
+	return num_whitelisted_op_array_refs;
+}
+
 /**
  * Augments the function represented by func with additional type hint enforcement opcodes
  * Func must represent a function with a non-null doc_comment field
  * Returns 1 on success or 0 if it was a no-op
  */
-int compile_user_function(zend_op_array *func)
+int compile_user_function(zend_op_array *func TSRMLS_DC)
 {
 	// first, ensure that this function hasn't already been compiled
 	// if it has, ensure everything is correctly assigned
 	zend_literal *enforcer = get_enforcement_literal(func);
 	if (enforcer) {
+		assert(*func->refcount > 1);
 		if (enforcer != func->literals) {
 			func->literals = enforcer;
 			func->last_literal++;
@@ -26,6 +100,18 @@ int compile_user_function(zend_op_array *func)
 	zend_literal enforce_literal;
 	int old_num_literals = func->last_literal;
 	zend_literal *old_literals = func->literals;
+
+	// if another op array references this function's op array, ensure that we will
+	// compile that op array too on this pass, otherwise we must bail out. This
+	// can happen when a superclass and subclass are whitelisted after the superclass
+	// has been compiled, and it is not good - we must warn the user
+	if (*func->refcount > 1) {
+		if (*func->refcount != get_num_whitelisted_op_array_refs_in_sweep(func->opcodes TSRMLS_CC)) {
+			zend_error(ATCG(compilation_error_level), "Compilation failed for function %s in file %s due to a duplicate reference, and its type information won't be enforced. This likely happened because the file was added to the whitelist after it was required during execution.\n",
+					func->function_name, func->filename);
+			return 0;
+		}
+	}
 
 	// make a compiler object and compile this annotation!
 	PHPDoc_Bison_Compiler compiler;
@@ -137,15 +223,8 @@ int compile_new_global_user_functions(TSRMLS_D)
 	zend_function *func;
 	int num_funcs_added = 0;
 	HashPosition temp_pos = ATCG(func_pos);
-
-	// ensure temp_pos is initialized to the first unexplored function
-	if (!temp_pos) {
-		zend_hash_internal_pointer_reset_ex(function_table, &temp_pos);
-	} else {
-		zend_hash_move_forward_ex(function_table, &temp_pos);
-		if (!temp_pos) {
-			return num_funcs_added;
-		}
+	if (!get_next_hashtable_pos(function_table, &temp_pos)) {
+		return 0;
 	}
 
 	// iterate through new compiled functions in the function table
@@ -172,7 +251,7 @@ int compile_new_global_user_functions(TSRMLS_D)
 			ATCG(current_namespace_prefix_len) = namespace_prefix_len;
 		}
 
-		if (compile_user_function(&(func->op_array))) {
+		if (compile_user_function(&(func->op_array) TSRMLS_CC)) {
 			num_funcs_added++;
 		}
 
@@ -216,7 +295,7 @@ int add_class_instance_methods(zend_class_entry *ce TSRMLS_DC)
 				should_compile_file(func->op_array.filename TSRMLS_CC)) {
 
 			DPRINTF("ATTEMPTING TO COMPILE instance method %s\n", func->common.function_name);
-			if (compile_user_function(&(func->op_array))) {
+			if (compile_user_function(&(func->op_array) TSRMLS_CC)) {
 				num_methods_compiled++;
 			}
 		}
@@ -235,15 +314,8 @@ int compile_new_instance_method_annotations(TSRMLS_D)
 	int num_methods_added = 0;
 	int num_instance_methods_added = 0;
 	HashPosition temp_pos = ATCG(class_pos);
-
-	// ensure temp_pos is initialized to the first unexplored class
-	if (!temp_pos) {
-		zend_hash_internal_pointer_reset_ex(class_table, &temp_pos);
-	} else {
-		zend_hash_move_forward_ex(class_table, &temp_pos);
-		if (!temp_pos) {
-			return 0;
-		}
+	if (!get_next_hashtable_pos(class_table, &temp_pos)) {
+		return 0;
 	}
 
 	for (; zend_hash_get_current_data_ex(class_table, (void **) &pce, &temp_pos) == SUCCESS;
@@ -289,6 +361,10 @@ int compile_new_instance_method_annotations(TSRMLS_D)
  */
 int compile_new_user_function_annotations(TSRMLS_D)
 {
+	// Reset the starting sweep position every compilation pass
+	ATCG(func_table_sweep_start) = ATCG(func_pos);
+	ATCG(class_table_sweep_start) = ATCG(class_pos);
+
 	return compile_new_instance_method_annotations(TSRMLS_C) +
 		compile_new_global_user_functions(TSRMLS_C);
 }

@@ -29,15 +29,28 @@ class Bar extends Foo
 	}
 }
 
-$o = new Bar();
+class Baz extends Bar
+{
+	/**
+	 * @return void
+	 */
+	public function bazbaz()
+	{
+		echo "baz\n";
+	}
+}
+
+$o = new Baz();
 var_dump( $o->inc_int(2) );
 $o->barbar();
+$o->bazbaz();
 $o->inc_int("foo");
 
 ?>
 --EXPECTREGEX--
 int\(44\)
 barbarbar
+baz
 
 Fatal error:.*
 .*

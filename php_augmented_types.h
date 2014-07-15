@@ -24,6 +24,8 @@ typedef struct _file_list_elem {
 typedef struct _augmented_types_globals {
 	HashPosition func_pos;		// Our current position in the compiler global function hash table
 	HashPosition class_pos;		// Current position in the compiler global class hash table
+	HashPosition func_table_sweep_start; // Starting position of current sweep in func table
+	HashPosition class_table_sweep_start; // Starting position of current sweep in class table
 	file_list_elem *whitelist_head;		// Head of the file whitelist
 	file_list_elem *blacklist_head;		// Head of the file blacklist
 	zend_bool enforce_by_default;
