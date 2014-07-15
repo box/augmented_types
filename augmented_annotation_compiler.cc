@@ -194,6 +194,7 @@ int add_class_instance_methods(zend_class_entry *ce TSRMLS_DC)
 	HashPosition method_pos;
 	zend_function *func;
 	HashTable *func_table = &(ce->function_table);
+	bool class_is_whitelisted = should_compile_file(class_file TSRMLS_CC);
 
 	for (zend_hash_internal_pointer_reset_ex(func_table, &method_pos);
 			zend_hash_get_current_data_ex(func_table, (void **) &func, &method_pos) == SUCCESS;
@@ -204,21 +205,22 @@ int add_class_instance_methods(zend_class_entry *ce TSRMLS_DC)
 			continue;
 		}
 
-		DPRINTF("inspecting instance method %s at %p\n", func->common.function_name, func);
-		DPRINTF("instance method filename = %s\n", func->op_array.filename);
+		// skip compilation of functions that aren't whitelisted. Note that we check
+		// here for membership in the white/blacklists because Zend re-uses op arrays
+		// for inherited instance methods. To save CPU cycles, we only check the
+		// white/blacklist if this function resides in a different file than the class
+		bool func_in_same_file = strncmp(class_file, func->op_array.filename, class_file_strlen) == 0;
+		bool definitely_compile_func = func_in_same_file && class_is_whitelisted;
+		bool definitely_skip_func = func_in_same_file && !class_is_whitelisted;
 
-		// we must once again ensure that we should compile this method using the
-		// blacklist + whitelist NOTE: this normally would not be necessary, but
-		// zend re-uses op_arrays for inherited instance methods
-		// PS: To save CPU cycles, only check the whitelist + blacklist if this
-		// function resides in a different file than the class
-		if (strncmp(class_file, func->op_array.filename, class_file_strlen) == 0 ||
-				should_compile_file(func->op_array.filename TSRMLS_CC)) {
+		if ( !definitely_compile_func && ( definitely_skip_func ||
+				!should_compile_file(func->op_array.filename TSRMLS_CC) )) {
+			continue;
+		}
 
-			DPRINTF("ATTEMPTING TO COMPILE instance method %s\n", func->common.function_name);
-			if (compile_user_function(&(func->op_array))) {
-				num_methods_compiled++;
-			}
+		DPRINTF("ATTEMPTING TO COMPILE instance method %s\n", func->common.function_name);
+		if (compile_user_function(&(func->op_array))) {
+			num_methods_compiled++;
 		}
 	}
 	return num_methods_compiled;
@@ -252,9 +254,13 @@ int compile_new_instance_method_annotations(TSRMLS_D)
 		// always advance our global class table position
 		ATCG(class_pos) = temp_pos;
 
-		// only compile valid classes declared in whitelisted files
-		if ((*pce)->type != ZEND_USER_CLASS ||
-				!should_compile_file((*pce)->info.user.filename TSRMLS_CC)) {
+		// only attempt to compile valid classes
+		// NOTE: We could check the whitelist here to judge whether we should
+		// compile this file, but Zend occasionally dumps inherited whitelisted
+		// functions in with blacklisted classes. Because of this we have to
+		// iterate through each method on all classes to judge whether it should
+		// be compiled or not
+		if ((*pce)->type != ZEND_USER_CLASS) {
 			continue;
 		}
 
