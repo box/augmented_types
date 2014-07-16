@@ -32,9 +32,9 @@ function foo($x) {
 echo foo(0);
 ?>
 --EXPECTREGEX--
-Warning: Function annotation compilation failed for function this\_accepts\_numerics in file .*, error message: Return types must always be specified.
+Warning: Function annotation compilation failed for function this\_echo in file .*, error message: You MUST specify a type for all parameters
 .*
 
-Warning: Function annotation compilation failed for function this\_echo in file .*, error message: You MUST specify a type for all parameters
+Warning: Function annotation compilation failed for function this\_accepts\_numerics in file .*, error message: Return types must always be specified.
 .*
 42

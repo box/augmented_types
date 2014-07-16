@@ -36,17 +36,17 @@ function boo($a = "", $b = "", $c = "") { echo $b.$c."foo\n"; }
 
 ?>
 --EXPECTREGEX--
-Warning: Function annotation compilation failed for function f in file.*, error message: Return types must always be specified.
-.*
-
-Warning: Function annotation compilation failed for function foo in file.*, error message: The number of PHPDoc parameters given does not match the actual number of function parameters.
-.*
-
-Warning: Function annotation compilation failed for function bar in file.*, error message: The number of PHPDoc parameters given does not match the actual number of function parameters.
+Warning: Function annotation compilation failed for function boo in file.*, error message: The number of PHPDoc parameters given does not match the actual number of function parameters.
 .*
 
 Warning: Function annotation compilation failed for function baz in file.*, error message: The number of PHPDoc parameters given does not match the actual number of function parameters.
 .*
 
-Warning: Function annotation compilation failed for function boo in file.*, error message: The number of PHPDoc parameters given does not match the actual number of function parameters.
+Warning: Function annotation compilation failed for function bar in file.*, error message: The number of PHPDoc parameters given does not match the actual number of function parameters.
+.*
+
+Warning: Function annotation compilation failed for function foo in file.*, error message: The number of PHPDoc parameters given does not match the actual number of function parameters.
+.*
+
+Warning: Function annotation compilation failed for function f in file.*, error message: Return types must always be specified.
 .*

@@ -42,12 +42,12 @@ function bar($x) {
 echo bar(0);
 ?>
 --EXPECTREGEX--
-Warning: Function annotation compilation failed for function foo in file .*, error message: Invalid parameter type - unknown character encountered
+Warning: Function annotation compilation failed for function baz in file .*, error message: Invalid return type - unknown character encountered
 .*
 
 Warning: Function annotation compilation failed for function this\_echo in file .*, error message: Invalid parameter type - unknown character encountered
 .*
 
-Warning: Function annotation compilation failed for function baz in file .*, error message: Invalid return type - unknown character encountered
+Warning: Function annotation compilation failed for function foo in file .*, error message: Invalid parameter type - unknown character encountered
 .*
 42

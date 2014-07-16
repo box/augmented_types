@@ -6,30 +6,14 @@
 
 bool should_compile_file(const char* path TSRMLS_DC);
 
-/**
- * Helper method to get the next hash table position. Returns 1
- * on success, 0 on failure (that is, when pos is at the end).
- * If *pos == NULL, will move pos to the starting position of table
- */
-int get_next_hashtable_pos(HashTable *table, HashPosition *pos)
-{
-	if (*pos == NULL) {
-		zend_hash_internal_pointer_reset_ex(table, pos);
-	} else {
-		zend_hash_move_forward_ex(table, pos);
-	}
-	if (*pos == NULL) {
-		return 0;
-	}
-	return 1;
-}
-
-int get_num_whitelisted_op_refs_in_function_table(HashTable* function_table, HashPosition pos, zend_op *opcodes TSRMLS_DC)
+int get_num_whitelisted_op_refs_in_function_table(HashTable* function_table, int num_funcs_to_explore, zend_op *opcodes TSRMLS_DC)
 {
 	int count = 0;
 	zend_function *func;
-	for (; zend_hash_get_current_data_ex(function_table, (void **) &func, &pos) == SUCCESS;
-			zend_hash_move_forward_ex(function_table, &pos)) {
+	HashPosition pos;
+	for (zend_hash_internal_pointer_end_ex(function_table, &pos);
+			zend_hash_get_current_data_ex(function_table, (void **) &func, &pos) == SUCCESS && num_funcs_to_explore > 0;
+			zend_hash_move_backwards_ex(function_table, &pos), --num_funcs_to_explore) {
 		if (func->type != ZEND_USER_FUNCTION) {
 			continue;
 		}
@@ -40,19 +24,19 @@ int get_num_whitelisted_op_refs_in_function_table(HashTable* function_table, Has
 	return count;
 }
 
-int get_num_whitelisted_op_refs_in_class_table(HashPosition pos, zend_op *opcodes TSRMLS_DC)
+int get_num_whitelisted_op_refs_in_class_table(int num_classes_to_explore, zend_op *opcodes TSRMLS_DC)
 {
 	int count = 0;
 	zend_class_entry **pce;
-	HashPosition class_func_table_pos = NULL;
-	for (; zend_hash_get_current_data_ex(CG(class_table), (void **) &pce, &pos) == SUCCESS;
-	        zend_hash_move_forward_ex(CG(class_table), &pos)) {
+	HashPosition pos;
+	for (zend_hash_internal_pointer_end_ex(CG(class_table), &pos);
+			zend_hash_get_current_data_ex(CG(class_table), (void **) &pce, &pos) == SUCCESS && num_classes_to_explore > 0;
+			zend_hash_move_backwards_ex(CG(class_table), &pos), --num_classes_to_explore) {
 		if ((*pce)->type != ZEND_USER_CLASS) {
 			continue;
 		}
 		HashTable *func_table = &((*pce)->function_table);
-		zend_hash_internal_pointer_reset_ex(func_table, &class_func_table_pos);
-		count += get_num_whitelisted_op_refs_in_function_table(func_table, class_func_table_pos, opcodes TSRMLS_CC);
+		count += get_num_whitelisted_op_refs_in_function_table(func_table, zend_hash_num_elements(func_table), opcodes TSRMLS_CC);
 	}
 	return count;
 }
@@ -65,16 +49,10 @@ int get_num_whitelisted_op_refs_in_class_table(HashPosition pos, zend_op *opcode
  */
 int get_num_whitelisted_op_array_refs_in_sweep(zend_op* opcodes TSRMLS_DC)
 {
-	HashPosition func_table_pos = ATCG(func_table_sweep_start);
-	HashPosition class_table_pos = ATCG(class_table_sweep_start);
-	int num_whitelisted_op_array_refs = 0;
-	if (get_next_hashtable_pos(CG(class_table), &class_table_pos)) {
-		num_whitelisted_op_array_refs += get_num_whitelisted_op_refs_in_class_table(class_table_pos, opcodes TSRMLS_CC);
-	}
-	if (get_next_hashtable_pos(CG(function_table), &func_table_pos)) {
-		num_whitelisted_op_array_refs += get_num_whitelisted_op_refs_in_function_table(CG(function_table), func_table_pos, opcodes TSRMLS_CC);
-	}
-	return num_whitelisted_op_array_refs;
+	int num_funcs_to_explore = zend_hash_num_elements(CG(function_table)) - ATCG(num_funcs_scanned);
+	int num_classes_to_explore = zend_hash_num_elements(CG(class_table)) - ATCG(num_classes_scanned);
+	return get_num_whitelisted_op_refs_in_class_table(num_classes_to_explore, opcodes TSRMLS_CC) +
+		get_num_whitelisted_op_refs_in_function_table(CG(function_table), num_funcs_to_explore, opcodes TSRMLS_CC);
 }
 
 /**
@@ -222,17 +200,12 @@ int compile_new_global_user_functions(TSRMLS_D)
 	HashTable *function_table = CG(function_table);
 	zend_function *func;
 	int num_funcs_added = 0;
-	HashPosition temp_pos = ATCG(func_pos);
-	if (!get_next_hashtable_pos(function_table, &temp_pos)) {
-		return 0;
-	}
+	HashPosition temp_pos;
+	int num_funcs_to_explore = zend_hash_num_elements(function_table) - ATCG(num_funcs_scanned);
 
-	// iterate through new compiled functions in the function table
-	for (; zend_hash_get_current_data_ex(function_table, (void**) &func, &temp_pos) == SUCCESS;
-	        zend_hash_move_forward_ex(function_table, &temp_pos)) {
-
-		// always advance the global function table pointer
-		ATCG(func_pos) = temp_pos;
+	for (zend_hash_internal_pointer_end_ex(function_table, &temp_pos);
+			zend_hash_get_current_data_ex(function_table, (void **) &func, &temp_pos) == SUCCESS && num_funcs_to_explore > 0;
+			zend_hash_move_backwards_ex(function_table, &temp_pos), --num_funcs_to_explore) {
 
 		// only compile valid functions in whitelisted files
 		if (func->type != ZEND_USER_FUNCTION ||
@@ -258,6 +231,10 @@ int compile_new_global_user_functions(TSRMLS_D)
 		ATCG(current_namespaced_entity) = NULL;
 		ATCG(current_namespace_prefix_len) = 0;
 	}
+
+	assert(num_funcs_to_explore == 0);
+	ATCG(num_funcs_scanned) = zend_hash_num_elements(function_table);
+
 	return num_funcs_added;
 }
 
@@ -313,16 +290,12 @@ int compile_new_instance_method_annotations(TSRMLS_D)
 	zend_class_entry **pce;
 	int num_methods_added = 0;
 	int num_instance_methods_added = 0;
-	HashPosition temp_pos = ATCG(class_pos);
-	if (!get_next_hashtable_pos(class_table, &temp_pos)) {
-		return 0;
-	}
+	HashPosition temp_pos;
+	int num_classes_to_explore = zend_hash_num_elements(class_table) - ATCG(num_classes_scanned);
 
-	for (; zend_hash_get_current_data_ex(class_table, (void **) &pce, &temp_pos) == SUCCESS;
-	        zend_hash_move_forward_ex(class_table, &temp_pos)) {
-
-		// always advance our global class table position
-		ATCG(class_pos) = temp_pos;
+	for (zend_hash_internal_pointer_end_ex(class_table, &temp_pos);
+			zend_hash_get_current_data_ex(class_table, (void **) &pce, &temp_pos) == SUCCESS && num_classes_to_explore > 0;
+			zend_hash_move_backwards_ex(class_table, &temp_pos), --num_classes_to_explore) {
 
 		// only compile valid classes declared in whitelisted files
 		if ((*pce)->type != ZEND_USER_CLASS ||
@@ -351,6 +324,9 @@ int compile_new_instance_method_annotations(TSRMLS_D)
 		ATCG(current_namespace_prefix_len) = 0;
 	}
 
+	assert(num_classes_to_explore == 0);
+	ATCG(num_classes_scanned) = zend_hash_num_elements(class_table);
+
 	return num_methods_added;
 }
 
@@ -361,10 +337,6 @@ int compile_new_instance_method_annotations(TSRMLS_D)
  */
 int compile_new_user_function_annotations(TSRMLS_D)
 {
-	// Reset the starting sweep position every compilation pass
-	ATCG(func_table_sweep_start) = ATCG(func_pos);
-	ATCG(class_table_sweep_start) = ATCG(class_pos);
-
 	return compile_new_instance_method_annotations(TSRMLS_C) +
 		compile_new_global_user_functions(TSRMLS_C);
 }
