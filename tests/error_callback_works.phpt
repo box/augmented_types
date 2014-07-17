@@ -55,6 +55,7 @@ $a = impossible(true);
  * @return bool
  */
 function mixer($in = false) {
+	echo "mixer!\n";
 	echo "$in\n";
 	if (!$in) {
 		return $in;
@@ -90,10 +91,14 @@ bool\(true\)
 Got a type error from file .* at line number .* in function mixer. The expected type of argument 1 was string\|integer\|Whatever and the actual value was:
 \(void\)
 
+mixer!
 
+mixer!
 1
 Got a type error from file .* at line number .* in function mixer. The expected type of the return value was boolean and the actual value was:
 NULL
 
 Got a type error from file .* at line number .* in function hodor. The expected type of argument 1 was void and the actual value was:
 string\(5\) "hodor"
+
+hodor!

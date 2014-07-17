@@ -904,6 +904,7 @@ void PHPDoc_Function::enforce_argument_types(zval** params, uint nparams, zend_o
 				zend_error(E_ERROR, "Too many arguments provided for function %s, was expecting nothing but got a %s\n",
 						op_array->function_name, zval_typestr_buf);
 			}
+			return;
 		}
 		// otherwise, ensure that the param's type matches our expectations.
 		else if (!fast_match_type((zend_uchar *)(type_buffer_ptr + sizeof(int)), param, type_string_buf, 64 TSRMLS_CC)) {
