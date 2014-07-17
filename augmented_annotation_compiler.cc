@@ -17,6 +17,7 @@ int get_num_whitelisted_op_refs_in_function_table(HashTable* function_table, int
 		if (func->type != ZEND_USER_FUNCTION) {
 			continue;
 		}
+		DPRINTF("doing a sweep through func %s\n", func->op_array.function_name);
 		if (func->op_array.opcodes == opcodes && should_compile_file(func->op_array.filename TSRMLS_CC)) {
 			count++;
 		}
@@ -35,6 +36,7 @@ int get_num_whitelisted_op_refs_in_class_table(int num_classes_to_explore, zend_
 		if ((*pce)->type != ZEND_USER_CLASS) {
 			continue;
 		}
+		DPRINTF("doing a sweep through class %s\n", (*pce)->name);
 		HashTable *func_table = &((*pce)->function_table);
 		count += get_num_whitelisted_op_refs_in_function_table(func_table, zend_hash_num_elements(func_table), opcodes TSRMLS_CC);
 	}

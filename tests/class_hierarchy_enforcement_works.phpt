@@ -16,6 +16,22 @@ abstract class Foo
 	{
 		return $this->x + 42 + $y;
 	}
+
+	public function __construct()
+	{
+		$this->x = 0;
+	}
+}
+
+class Bar2 extends Foo
+{
+	/**
+	 * @return void
+	 */
+	public function barbar()
+	{
+		echo "barbarbar\n";
+	}
 }
 
 class Bar extends Foo
