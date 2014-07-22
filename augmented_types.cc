@@ -86,6 +86,7 @@ static int augmented_types_start(zend_extension *extension)
 
 zend_op_array *augmented_types_compile_file(zend_file_handle *file_handle, int type TSRMLS_DC)
 {
+	prepare_compiler_state(TSRMLS_C);
 	zend_op_array *op_array = old_compile_file(file_handle, type TSRMLS_CC);
 
 	DPRINTF("FROM COMPILE::::\n");
@@ -108,6 +109,7 @@ zend_op_array *augmented_types_compile_file(zend_file_handle *file_handle, int t
 
 zend_op_array* augmented_types_compile_string(zval* source_string, char *filename TSRMLS_DC)
 {
+	prepare_compiler_state(TSRMLS_C);
 	zend_op_array *res = old_compile_string(source_string, filename TSRMLS_CC);
 	compile_new_user_function_annotations(TSRMLS_C);
 	return res;

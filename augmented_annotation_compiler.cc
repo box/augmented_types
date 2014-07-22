@@ -235,8 +235,6 @@ int compile_new_global_user_functions(TSRMLS_D)
 	}
 
 	assert(num_funcs_to_explore == 0);
-	ATCG(num_funcs_scanned) = zend_hash_num_elements(function_table);
-
 	return num_funcs_added;
 }
 
@@ -327,8 +325,6 @@ int compile_new_instance_method_annotations(TSRMLS_D)
 	}
 
 	assert(num_classes_to_explore == 0);
-	ATCG(num_classes_scanned) = zend_hash_num_elements(class_table);
-
 	return num_methods_added;
 }
 
@@ -341,4 +337,15 @@ int compile_new_user_function_annotations(TSRMLS_D)
 {
 	return compile_new_instance_method_annotations(TSRMLS_C) +
 		compile_new_global_user_functions(TSRMLS_C);
+}
+
+
+/**
+ * Function to prepare the compiler's state before each compilation
+ * pass so we can judge what new functions+classes to compile
+ */
+void prepare_compiler_state(TSRMLS_D)
+{
+	ATCG(num_classes_scanned) = zend_hash_num_elements(CG(class_table));
+	ATCG(num_funcs_scanned) = zend_hash_num_elements(CG(function_table));
 }
