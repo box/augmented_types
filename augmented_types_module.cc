@@ -14,6 +14,10 @@ ZEND_INI_BEGIN()
 			enforce_by_default, augmented_types_globals, at_globals)
 	STD_PHP_INI_ENTRY("augmented_types.compilation_error_level", "1" /* 1 == E_ERROR */, PHP_INI_ALL, OnUpdateLong,
 			compilation_error_level, augmented_types_globals, at_globals)
+	STD_PHP_INI_ENTRY("augmented_types.whitelist", "", PHP_INI_ALL, OnUpdateString,
+			whitelist_ini_list, augmented_types_globals, at_globals)
+	STD_PHP_INI_ENTRY("augmented_types.blacklist", "", PHP_INI_ALL, OnUpdateString,
+			blacklist_ini_list, augmented_types_globals, at_globals)
 ZEND_INI_END()
 
 ZEND_BEGIN_ARG_INFO_EX(arginfo_augmented_types_blacklist, 0, 0, 1)
@@ -29,13 +33,34 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_augmented_types_register_type_error_callback, 0, 
 ZEND_END_ARG_INFO()
 
 /**
+ * Helper function to add a single path to the passed file_list_elem linked list.
+ * Returns 1 on success, 0 on failure
+ */
+static int add_path_to_file_linked_list(char* path, int path_len, file_list_elem **head TSRMLS_DC)
+{
+	file_list_elem *new_elem;
+	char* filename = zend_resolve_path(path, path_len TSRMLS_CC);
+	// NOTE: filename is emalloc-ed
+	DPRINTF("path %s resolved to filename %s\n", path, filename);
+
+	if (filename) {
+		new_elem = (file_list_elem*) emalloc(sizeof(file_list_elem));
+		new_elem->path = filename;
+		new_elem->pathlen = strlen(filename);
+		new_elem->next = *head;
+		*head = new_elem;
+		return 1;
+	}
+	return 0;
+}
+
+/**
  * Helper function to add filenames in array 'arr' to the passed in file linked list
  */
 static int prepend_paths_to_file_linked_list(HashTable *arr, file_list_elem **head TSRMLS_DC)
 {
 	HashPosition pos;
 	zval **entry;
-	file_list_elem *new_elem;
 	char *filename;
 	int num_added = 0;
 
@@ -44,22 +69,41 @@ static int prepend_paths_to_file_linked_list(HashTable *arr, file_list_elem **he
 			zend_hash_move_forward_ex(arr, &pos)) {
 
 		if (Z_TYPE_PP(entry) == IS_STRING) {
-
-			// filename is emalloc-ed
-			filename = zend_resolve_path(Z_STRVAL_PP(entry), Z_STRLEN_PP(entry) TSRMLS_CC);
-			DPRINTF("path %s resolved to filename %s\n", Z_STRVAL_PP(entry), filename);
-			if (filename) {
-				new_elem = (file_list_elem*) emalloc(sizeof(file_list_elem));
-				new_elem->path = filename;
-				new_elem->pathlen = strlen(filename);
-				new_elem->next = *head;
-				*head = new_elem;
-				num_added++;
-			}
+			num_added += add_path_to_file_linked_list(Z_STRVAL_PP(entry), Z_STRLEN_PP(entry), head TSRMLS_CC);
 		}
 	}
 
 	return num_added;
+}
+
+/**
+ * Extracts each colon-seperated path from listing and adds it to the head of the file list
+ */
+static void add_ini_path_listing_to_file_list(char* listing, file_list_elem **head TSRMLS_DC)
+{
+	DPRINTF("path %s passed to add ini path\n", listing);
+	char* start = listing;
+	int len = 0;
+
+	while (start && *start) {
+		while(start[len] != ':' && start[len] != 0) {
+			len++;
+		}
+
+		char* path = (char*) emalloc(len + 1);
+		memcpy((void*) path, start, len);
+		path[len] = 0;
+		add_path_to_file_linked_list(path, len, head TSRMLS_CC);
+		efree(path);
+
+		start += len;
+		len = 0;
+		// if this isn't pointing at the end of the string,
+		// advance start past the path delimiter
+		if (*start) {
+			start++;
+		}
+	}
 }
 
 ZEND_FUNCTION(augmented_types_blacklist)
@@ -123,6 +167,12 @@ ZEND_MINIT_FUNCTION(augmented_types)
 	return SUCCESS;
 }
 
+ZEND_RINIT_FUNCTION(augmented_types)
+{
+	add_ini_path_listing_to_file_list(ATCG(whitelist_ini_list), &(ATCG(whitelist_head)) TSRMLS_CC);
+	add_ini_path_listing_to_file_list(ATCG(blacklist_ini_list), &(ATCG(blacklist_head)) TSRMLS_CC);
+}
+
 static zend_function_entry augmented_types_functions[] = {
 	ZEND_FE(augmented_types_blacklist, arginfo_augmented_types_blacklist)
 	ZEND_FE(augmented_types_whitelist, arginfo_augmented_types_whitelist)
@@ -138,7 +188,7 @@ zend_module_entry augmented_types_module_entry = {
 	augmented_types_functions, /* functions */
 	ZEND_MINIT(augmented_types), /* minit */
 	NULL, /* mshutdown */
-	NULL, /* rinit */
+	ZEND_RINIT(augmented_types), /* rinit */
 	NULL, /* rshutdown */
 	NULL, /* minfo */
 #if ZEND_MODULE_API_NO >= 20010901
